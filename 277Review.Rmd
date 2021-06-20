@@ -1,0 +1,462 @@
+---
+title: "Misha Khan MSBA 277"
+output: pdf_document
+---
+Install packages
+```{r}
+install.packages("psych") #Descriptive Statistics
+install.packages("dplyr") #Data Manipulation
+install.packages("plyr")
+install.packages("tidyverse") #Essential R packages
+install.packages("gtsummary") #Summary tables
+install.packages("sqldf") #SQL
+install.packages("ggplot2") #Data Visualization
+install.packages("corrplot") #Correlation Plot
+install.packages("igraph") #Graphs
+install.packages("shiny") #Graphs
+install.packages("car") #VIF
+install.packages("MatchIt") #PSM
+
+```
+
+Load libraries
+```{r}
+library(psych)
+library(dplyr)
+library(plyr)
+library(tidyverse)
+library(gtsummary)
+library(sqldf)
+library(ggplot2)
+library(corrplot)
+library(igraph)
+library(shiny)
+library(car)
+library(MatchIt)
+
+```
+
+Load file
+```{r}
+#Set working directory
+#setwd("~/Desktop/WINTER 2020/MSBA 277/Midterm/HighNote Data Midterm.csv")
+
+#Read file
+data <- data.frame(read.csv("HighNote Data Midterm.csv", header = TRUE))
+head(data)
+attach(data)
+sum(is.na(data))
+```
+
+
+1. Summary Statistics 
+Generate descriptive statistics for the key variables in the data set, similar 
+to the table on the last page of the case. (Note that your table will look 
+different because the data set you are analyzing is different from the one used 
+to generate the table in the case.) Analyze the differences in the mean values 
+of the variables, comparing the adopter and non-adapter subsamples. 
+What tentative conclusions can you draw from these comparisons? 
+```{r}
+stat <- data %>% select(age, male, friend_cnt, subscriber_friend_cnt, songsListened, playlists, posts, shouts, lovedTracks, friend_country_cnt, good_country, tenure, adopter)
+
+stat %>% tbl_summary(by = adopter,
+                     statistic = list(all_continuous() ~ "{mean} ({sd})",
+                                      all_categorical() ~ "{n} / {N} ({p}%)"),
+                     digits = all_continuous() ~4
+                     ) %>% add_p()
+
+```
+
+
+2. Data Visualization
+Generate a set of charts (e.g., scatter plots, box plots, etc) to help visualize
+how adopters and non-adopters (of the premium subscription service) differ from
+each other in terms of (i) demographics, (ii) peer influence, and (iii) user
+engagement. What can you conclude from your charts? 
+```{r}
+#Create factor for adopter
+adopter <- ifelse(data$adopter == 1, "Premium", "Free")
+table(adopter)
+
+```
+
+```{r}
+#(i) Demographics: age, male, good_country
+
+##########################################
+##################AGE#####################
+##########################################
+hist(data$age,
+     breaks = 100,
+     main = "Demographic: Distribution of Age",
+     xlab = "Range",
+     col = "light blue")
+
+ggplot(data, aes( x = age, group = adopter, fill = adopter)) +
+  #geom_density(alpha = 0.3) +
+  geom_histogram(position = "identity", binwidth = 0.5) + theme()
+
+##########################################
+#################MALE#####################
+##########################################
+ggplot(data, aes(x = male, group = adopter, fill = adopter)) +
+  #geom_count(aes(x = male, y = adopter)) +
+  geom_bar(position = "dodge") +theme()
+
+
+##########################################
+################COUNTRY###################
+##########################################
+ggplot(data, aes(x = good_country, group = adopter, fill = adopter)) +
+  geom_bar(position = "dodge") + theme()
+
+##########################################
+##############CORRELATION#################
+##########################################
+demo_corr <- data[, c('adopter', 'age', 'male', 'good_country')]
+x = cor(demo_corr, method = c("pearson", "kendall", "spearman"))
+corrplot(x, method = "number", addrect = 2)
+   
+```
+
+
+```{r}
+#(ii) Peer Influence: friend_cnt, avg_friend_age, avg_friend_male, friend_country_cnt, subscriber_friend_cnt
+
+##########################################
+###############FRIEND COUNT###############
+##########################################
+friend.count <- ggplot(data, aes(x = adopter, y = friend_cnt, fill = adopter)) +
+  geom_bar(stat = "summary") 
+
+friend.count
+
+##########################################
+###############FRIEND AGE#################
+##########################################
+friend.age <- ggplot(data, aes(x = adopter, y = avg_friend_age, fill = adopter)) +
+  geom_bar(stat = "summary") 
+
+friend.age
+
+##########################################
+###############FRIEND MALE################
+##########################################
+friend.male <- ggplot(data, aes(x = adopter, y = avg_friend_male, fill = adopter)) +
+  geom_bar(stat = "summary") 
+
+friend.male
+
+##########################################
+###############FRIEND COUNTRY#############
+##########################################
+
+friend.country <- ggplot(data, aes(x = adopter, y = friend_country_cnt, fill = adopter)) +
+  geom_bar(stat = "summary") 
+
+friend.country
+
+##########################################
+###############FRIEND SUB#################
+##########################################
+friend.sub <- ggplot(data, aes(x = adopter, y = subscriber_friend_cnt, fill = adopter)) +
+  geom_bar(stat = "summary") 
+
+friend.sub
+
+##########################################
+##############CORRELATION#################
+##########################################
+peer_corr <- data[, c('adopter', 'friend_cnt', 'avg_friend_age', 'avg_friend_male', 'friend_country_cnt', 'subscriber_friend_cnt')]
+x = cor(peer_corr, method = c("pearson", "kendall", "spearman"))
+corrplot(x, method = "number", addrect = 2)
+
+```
+
+```{r}
+#(iii) User Engagement: songsListened, lovedTracks, posts, shouts, playlists, tenure
+
+##########################################
+###############SONGS LISTENED#############
+##########################################
+SL <- ggplot(data, aes(x = adopter, y = songsListened, fill = adopter)) +
+  geom_bar(stat = "summary") 
+
+SL
+
+##########################################
+###############LOVED TRACKS###############
+##########################################
+LT <- ggplot(data, aes(x = adopter, y = lovedTracks, fill = adopter)) +
+  geom_bar(stat = "summary") 
+
+LT
+
+##########################################
+################# POSTS ##################
+##########################################
+PST <- ggplot(data, aes(x = adopter, y = posts, fill = adopter)) +
+  geom_bar(stat = "summary") 
+
+PST
+
+##########################################
+###############PLAYLISTS#################
+##########################################
+PLAY <- ggplot(data, aes(x = adopter, y = playlists, fill = adopter)) +
+  geom_bar(stat = "summary") 
+
+PLAY
+
+##########################################
+###############SHOUTS####################
+##########################################
+SHT <- ggplot(data, aes(x = adopter, y = shouts, fill = adopter)) +
+  geom_bar(stat = "summary") 
+
+SHT
+
+##########################################
+###############TENURE####################
+##########################################
+TEN <- ggplot(data, aes(x = adopter, y = tenure, fill = adopter)) +
+  geom_bar(stat = "summary") 
+
+TEN
+
+##########################################
+##############CORRELATION#################
+##########################################
+eng_corr <- data[, c('adopter', 'songsListened', 'lovedTracks', 'posts', 'playlists', 'shouts', 'tenure')]
+x = cor(eng_corr, method = c("pearson", "kendall", "spearman"))
+corrplot(x, method = "number", addrect = 2)
+
+```
+
+3. Propensity Score Matching 
+You will use PSM to test whether having subscriber friends affects the 
+likelihood of becoming an adopter (i.e., fee customer). For this purpose, the
+"treatment" group will be users that have one or more subscriber friends
+(subscriber_friend_cnt >= 1), while the "control" group will include users with
+zero subscriber friends. Use PSM to first create matched treatment and control
+samples, then test whether there is a significant average treatment effect.
+Provide an interpretation of your results.
+```{r}
+# Pre-analysis using non-matched data
+#Difference in means: pretreatment covariate
+
+#Create binary variable for subscriber_friend_cnt
+data$subscriber_friend_cnt <- ifelse(data$subscriber_friend_cnt >= 1, 1, 0)
+data_cov <- c('age','male','friend_cnt','avg_friend_age','avg_friend_male','friend_country_cnt','songsListened','lovedTracks','posts','playlists','shouts','tenure','good_country')
+
+data %>%
+  group_by(subscriber_friend_cnt) %>%
+  select(one_of(data_cov)) %>%
+  summarise_all(funs(mean(., na.rm = T)))
+
+with(data, t.test(subscriber_friend_cnt ~ adopter))
+#P < alpha, data is not similar among groups
+```
+
+```{r}
+#Propensity Score estimation (without log, unmatched data)
+data_psm <- glm(subscriber_friend_cnt ~ age + male + friend_cnt + avg_friend_age + avg_friend_male + friend_country_cnt + songsListened + lovedTracks + posts + playlists + shouts + tenure + good_country, family = binomial(), data = data)
+
+summary(data_psm)
+```
+
+```{r}
+#In order to take log, find the variables with minimum of 0 to add plus 1 (avoid taking log of 0)
+min(age) #8
+min(friend_cnt) #1
+min(avg_friend_age) #8
+min(avg_friend_male) #0 ***
+min(friend_country_cnt) #0 ***
+min(songsListened) #0 ***
+min(lovedTracks) #0 ***
+min(posts) #0 ***
+min(playlists) #0 ***
+min(shouts) #0 ***
+min(tenure) #0 ***
+min(good_country) #0 ***
+
+#We don't add 1 to age, friend_cnt, and avg_friend_age.
+```
+
+```{r}
+#Propensity Score estimation (with log, unmatched data)
+logit <- glm(subscriber_friend_cnt ~ log(age) + male +log(friend_cnt) + log(avg_friend_age) + log(avg_friend_male + 1) +
+                        log(friend_country_cnt + 1) + log(songsListened + 1) + log(lovedTracks + 1) + log(posts + 1) +
+                        log(playlists + 1) + log(shouts + 1) + log(tenure + 1) + good_country,
+                        family = binomial(),
+                        data = data)
+summary(logit)
+```
+
+```{r}
+# Using this model, we can now calculate the propensity score for each user 
+# It is simply the user’s predicted probability of being Treated, 
+# given the estimates from the logit model.
+psm_df <- data.frame(pr_score = predict(logit, type = "response"),
+                     treatment = logit$model$subscriber_friend_cnt)
+head(psm_df)
+```
+
+```{r}
+#Examining region of common support (logit)
+#After estimating the propensity score, it is useful to plot histograms of the estimated propensity scores by treatment status
+
+region <- paste("User Type:", c("Premium", "Free"))
+psm_df %>%
+  mutate(treatment = ifelse(treatment == 1, region[1], region[2])) %>%
+  ggplot(aes(x = pr_score)) +
+  geom_histogram(color = "black", fill = "pink") +
+  facet_wrap(~treatment) +
+  xlab("Probability of One or More Subscriber Friends") +
+  theme_classic()
+
+#Check NA values
+sum(is.na(data))
+```
+
+
+```{r}
+# The method we use below is to find pairs of observations that have very similar propensity scores, 
+# but that differ in their treatment status. We use the package MatchIt for this. 
+# This package estimates the propensity score in the background and then matches observations based 
+# on the method of choice (“nearest” in this case).
+data_match <- matchit(subscriber_friend_cnt ~ age + male + friend_cnt + avg_friend_age + avg_friend_male + friend_country_cnt + songsListened +lovedTracks + posts + playlists + shouts + tenure + good_country, method = "nearest", data = data)
+
+# We can get some information about how successful the matching was using summary(mod_match) and plot(mod_match)
+#Matching information
+summary(data_match)
+plot(data_match)
+
+# To create a dataframe containing only the matched observations, use the match.data() function
+#Use matching observations
+data_m <- match.data(data_match)
+dim(data_m)
+table(data_m$subscriber_friend_cnt)
+```
+
+
+```{r}
+#Log of Matching data
+log_match <- matchit(subscriber_friend_cnt ~ log(age) + male + log(friend_cnt) + log(avg_friend_age) + log(avg_friend_male + 1) + log(friend_country_cnt +1) +
+                                  log(songsListened + 1) + log(lovedTracks + 1) + log(posts + 1) + log(playlists + 1) + log(shouts + 1) + log(tenure + 1) +
+                                  good_country, 
+                                  method = 'nearest',
+                                  data = data,
+                                  caliper = 0.1)
+summary(log_match, covariates = T)
+
+#Match the new log data
+log_m <- match.data(log_match)
+dim(log_m)
+table(log_m$subscriber_friend_cnt)
+
+lapply(data_cov, function(v) {
+  t.test(log_m[, v] ~ log_m$subscriber_friend_cnt)
+})
+
+```
+
+```{r}
+# Difference in means (matched data)
+group_by(data_m, subscriber_friend_cnt) %>%
+  summarise_all(funs(mean(., na.rm = T)))
+lapply(data_cov, function(v) {
+  t.test(data_m[,v] ~ data_m$subscriber_friend_cnt)
+})
+```
+
+
+```{r}
+# Estimating treatment effects
+#Treatment #1: All unmatched
+lm_1 <- glm(adopter ~ subscriber_friend_cnt, data = data_m, family = binomial(), )
+
+summary(lm_1)
+with(data_m, t.test(adopter ~ subscriber_friend_cnt))
+
+#p < alpha reject null
+#more than 0 or 1 subscriber friend youre more likely to be an adopter
+
+#Treatment #2: Covariate (both significant and insignificant)
+lm_2 <- glm(adopter ~ subscriber_friend_cnt +log(age) + male + log(friend_cnt) + log(avg_friend_age) + log(avg_friend_male + 1) + log(friend_country_cnt +1) +
+                                  log(songsListened + 1) + log(lovedTracks + 1) + log(posts + 1) + log(playlists + 1) + log(shouts + 1) + log(tenure + 1) +
+                                  good_country, data = data_m, family = binomial())
+summary(lm_2)
+
+#avgmale friends and foreign friends doesn't affect if you are adopter or not
+
+```
+ 
+4. Regression Analysis
+Now, we will use a logistic regression approach to test which variables
+(including subscriber friends) are significant for explaining the likelihood of
+becoming an adopter. Use your judgment and visualization results to decide which
+variables to include in the regression. Estimate the odds ratios for the key
+variables. What can you conclude from your results?
+```{r}
+#Full model of full data
+full.mod <- lm(adopter ~ log(age) + male + log(friend_cnt) + log(avg_friend_age) + log(avg_friend_male + 1) + log(friend_country_cnt +1) +
+                                  log(songsListened + 1) + log(lovedTracks + 1) + log(posts + 1) + log(playlists + 1) + log(shouts + 1) + log(tenure + 1) +
+                                  good_country + subscriber_friend_cnt,
+                                  data = data,
+                                  family = binomial())
+summary(full.mod)
+
+```
+After running regression on the model, we can see that the log(friend_cnt) and log(avg_friend_male +1) are insignifican based on alpha = 0.05.
+Rest are not significant so we keep this in our model.
+```{r}
+#Reduced model of full data
+#Remove log(friend_cnt) and log(avg_friend_male +1)
+reduced.mod <- lm(adopter ~ log(age) + male + log(avg_friend_age) + log(friend_country_cnt +1) +
+                                  log(songsListened + 1) + log(lovedTracks + 1) + log(posts + 1) + log(playlists + 1) + log(shouts + 1) + log(tenure + 1) +
+                                  good_country + subscriber_friend_cnt,
+                                  data = data,
+                                  family = binomial())
+summary(reduced.mod)
+```
+```{r}
+#Now we run anova with both full and reduced to compare (full data)
+anova(full.mod, reduced.mod, test = "Chisq")
+```
+Chisq = 0.1747
+Chisq p value is insignificant
+suggests that the reduced model fits as well as the full model for the full dataset
+```{r}
+#Full model on matched data
+full.mod.m <- lm(adopter ~ log(age) + male + log(friend_cnt) + log(avg_friend_age) + log(avg_friend_male + 1) + log(friend_country_cnt +1) +
+                                  log(songsListened + 1) + log(lovedTracks + 1) + log(posts + 1) + log(playlists + 1) + log(shouts + 1) + log(tenure + 1) +
+                                  good_country + subscriber_friend_cnt,
+                                  data = data_m,
+                                  family = binomial())
+summary(full.mod.m)
+```
+After running regression on the model with matched data, we can see that the log(avg_friend_male +1) and log(friend_country_cnt +1) are insignificant based on alpha = 0.05 (p>a).
+Rest are not significant so we keep this in our model.
+```{r}
+reduced.mod.m <- lm(adopter ~ log(age) + male + log(friend_cnt) + log(avg_friend_age) +
+                                  log(songsListened + 1) + log(lovedTracks + 1) + log(posts + 1) + log(playlists + 1) + log(shouts + 1) + log(tenure + 1) +
+                                  good_country + subscriber_friend_cnt,
+                                  data = data_m,
+                                  family = binomial())
+summary(reduced.mod.m)
+```
+```{r}
+#Now we run anova with both full and reduced to compare (matched)
+anova(full.mod.m, reduced.mod.m, test = "Chisq")
+```
+Chisq = 0.49 therefore insignificant
+Reduced model fits as well as the full model
+
+```{r}
+#Estimate odds ratio for the key variables.
+exp(reduced.mod$coefficients) - 1
+exp(reduced.mod.m$coefficients) -1
+
+```
+
